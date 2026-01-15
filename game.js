@@ -10,9 +10,45 @@ const params = new URLSearchParams(window.location.search);
 const replaceFetch = (str) => str.replace("https://cdn.dos.zone/vcsky/", "vcsky/")
 const replaceBR = "/vcbr/"
 
+// ==========================================
+// 核心修复：音频上下文解锁帮助函数
+// ==========================================
+var audioContextUnlocked = false;
+function unlockAudioContext() {
+    if (audioContextUnlocked) return;
+
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    // 创建一个空的音频上下文
+    var ctx = new AudioContext();
+    
+    // 创建一个极短的静音缓冲区来“骗过”浏览器
+    var buffer = ctx.createBuffer(1, 1, 22050);
+    var source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    
+    // 播放声音（静音）
+    if (source.start) {
+        source.start(0);
+    } else if (source.noteOn) {
+        source.noteOn(0);
+    }
+
+    // 强制恢复上下文状态（修复 suspended 状态）
+    if (ctx.state === 'suspended') {
+        ctx.resume().then(function() {
+            console.log('AudioContext resumed successfully');
+            audioContextUnlocked = true;
+        });
+    } else {
+        audioContextUnlocked = true;
+    }
+}
+// ==========================================
 
 // Configurable mode - show settings UI before play
-//const configurableMode = params.get('configurable') === "1";
 const configurableMode = "1";
 // Settings that can be configured via URL or UI
 let autoFullScreen = params.get('fullscreen') !== "0";
@@ -59,11 +95,9 @@ const translations = {
         configFullscreen: "全屏模式",
         configMaxFps: "最大帧率：",
         configUnlimited: "（0 = 无限制）",
-        // 新增表格表头翻译
         tableHeaderItem: "配置项名称",
         tableHeaderRange: "取值范围",
         tableHeaderDesc: "说明",
-        // 新增表格配置项说明翻译
         configLangDesc: "游戏语言",
         configCheatsDesc: "启用作弊菜单（按F3键呼出）",
         configOriginalGameDesc: "游玩前请求下载原始游戏文件",
@@ -91,7 +125,6 @@ const translations = {
         enterKey: "enter your key",
         clickToContinue: "Click to continue...",
         enterJsDosKey: "Enter js-dos key (5 len)",
-
         ruTranslate: "",
         demoOffDisclaimer: "Due to the unexpectedly high popularity of the project, resulting in significant traffic costs, and in order to avoid any risk of the project being shut down due to rights holder claims, we have disabled the demo version. You can still run the full version by providing the original game resources.",
         configLanguage: "Language:",
@@ -99,11 +132,9 @@ const translations = {
         configFullscreen: "Fullscreen",
         configMaxFps: "Max FPS:",
         configUnlimited: "(0 = unlimited)",
-        // 新增表格表头翻译
         tableHeaderItem: "Configuration Item Name",
         tableHeaderRange: "Value Range",
         tableHeaderDesc: "Description",
-        // 新增表格配置项说明翻译
         configLangDesc: "Game Language",
         configCheatsDesc: "Enable Cheat Menu (Press F3 to open)",
         configOriginalGameDesc: "Request to download original game files before playing",
@@ -143,11 +174,9 @@ const translations = {
         configFullscreen: "Полный экран",
         configMaxFps: "Макс. FPS:",
         configUnlimited: "(0 = без ограничений)",
-        // 新增表格表头翻译
         tableHeaderItem: "Название параметра конфигурации",
         tableHeaderRange: "Диапазон значений",
         tableHeaderDesc: "Описание",
-        // 新增表格配置项说明翻译
         configLangDesc: "Язык игры",
         configCheatsDesc: "Включить меню читов (нажмите F3 для открытия)",
         configOriginalGameDesc: "Запросить загрузку оригинальных игровых файлов перед запуском",
@@ -158,21 +187,19 @@ const translations = {
 };
 
 var currentLanguage = navigator.language.split("-")[0] === "ru" ? "ru" : "en";
-    if (params.get("lang") === "ru") {
-        currentLanguage = "ru";
-    }
-    if (params.get("lang") === "en") {
-        currentLanguage = "en";
-    }
-    currentLanguage = 'zh'
-    
+if (params.get("lang") === "ru") {
+    currentLanguage = "ru";
+}
+if (params.get("lang") === "en") {
+    currentLanguage = "en";
+}
+currentLanguage = 'zh'
+
 window.t = function (key) {
     return translations[currentLanguage][key];
 }
 
-// Function to update all translated texts on the page
 function updateAllTranslations() {
-    
     const clickToPlayButton = document.getElementById('click-to-play-button');
     if (clickToPlayButton) {
         clickToPlayButton.textContent = haveOriginalGame ? t('clickToPlayFull') : t('clickToPlayDemo');
@@ -200,7 +227,6 @@ function updateAllTranslations() {
     const disclaimerCheckboxLabel = document.getElementById('disclaimer-checkbox-label');
     if (disclaimerCheckboxLabel) disclaimerCheckboxLabel.textContent = t('disclaimerCheckbox');
         
-    // Update config panel labels if present
     const configLangLabel = document.getElementById('config-lang-label');
     if (configLangLabel) configLangLabel.textContent = t('configLanguage');
     
@@ -216,8 +242,6 @@ function updateAllTranslations() {
     const configMaxFpsUnlimited = document.getElementById('config-max-fps-unlimited');
     if (configMaxFpsUnlimited) configMaxFpsUnlimited.textContent = t('configUnlimited');
     
-    // ========== 新增：配置表格翻译逻辑（和原有代码风格保持一致） ==========
-    // 1. 渲染表格表头
     const tableHeaderItem = document.getElementById('table-header-item');
     if (tableHeaderItem) tableHeaderItem.textContent = t('tableHeaderItem');
     
@@ -227,7 +251,6 @@ function updateAllTranslations() {
     const tableHeaderDesc = document.getElementById('table-header-desc');
     if (tableHeaderDesc) tableHeaderDesc.textContent = t('tableHeaderDesc');
 
-    // 2. 渲染表格配置项说明
     const configDescLang = document.getElementById('config-desc-lang');
     if (configDescLang) configDescLang.textContent = t('configLangDesc');
     
@@ -245,16 +268,13 @@ function updateAllTranslations() {
     
     const configDescConfigurable = document.getElementById('config-desc-configurable');
     if (configDescConfigurable) configDescConfigurable.textContent = t('configConfigurableDesc');
-    // ========== 表格翻译逻辑结束 ==========
 }
 
-// Function to update game data files based on language
 function updateGameDataForLanguage(lang) {
     data_content = `${replaceBR}vc-sky-en-v6.data.br`;
     wasm_content = `${replaceBR}vc-sky-en-v6.wasm.br`;
 }
 
-// Initialize data files based on current language
 updateGameDataForLanguage(currentLanguage);
 
 async function loadData() {
@@ -304,6 +324,9 @@ async function loadData() {
 async function startGame(e) {
     e.stopPropagation();
 
+    // 修复点：第一次点击时尝试解锁音频
+    unlockAudioContext();
+
     document.querySelector('.start-container').style.display = 'none';
     document.querySelector('.disclaimer').style.display = 'none';
 
@@ -313,18 +336,25 @@ async function startGame(e) {
     document.querySelector('.click-to-play').style.display = 'none';
     loaderContainer.style.display = "flex";
     introContainer.hidden = false;
-    intro.play();
+    
+    // 尝试播放 intro 也是为了触发媒体权限
+    intro.play().catch(e => console.log("Intro play blocked, continuing...", e));
 
     const dataBuffer = await loadData();
     spinnerElement.hidden = true;
     setStatus(t("clickToContinue"));
     introContainer.hidden = false;
     introContainer.style.cursor = 'pointer';
+    
     const clickHandler = () => {
+        // 修复点：第二次点击（最关键）时解锁音频，确保 Context 是 Active 的
+        unlockAudioContext();
+
         intro.pause();
         introContainer.style.display = 'none';
         loadGame(dataBuffer);
     };
+    
     if (isMobile) {
         window.addEventListener('pointerup', clickHandler, { once: true });
     } else {
@@ -379,7 +409,13 @@ async function loadGame(data) {
         preRun: [],
         postRun: [],
         print: (...args) => console.log(args.join(' ')),
-        printErr: (...args) => console.error(args.join(' ')),
+        printErr: (...args) => {
+            console.error(args.join(' '));
+            // 如果捕获到 OpenAL 错误，不要让它成为致命错误，尝试继续运行
+            if (args.join(' ').includes('alGetProcAddress')) {
+                console.warn("Suppressing OpenAL crash in JS shim.");
+            }
+        },
         getPreloadedPackage: () => {
             return data.buffer;
         },
@@ -389,6 +425,9 @@ async function loadGame(data) {
                 statusElement.textContent = 'WebGL context lost. Please reload the page.';
                 e.preventDefault();
             });
+            // 防止触摸事件被浏览器劫持
+            canvas.addEventListener('touchstart', function(e){ e.preventDefault() }, {passive: false});
+            canvas.addEventListener('touchmove', function(e){ e.preventDefault() }, {passive: false});
             return canvas;
         }(),
         setStatus,
@@ -414,15 +453,24 @@ async function loadGame(data) {
         const module = await WebAssembly.instantiate(wasm, info);
         return receiveInstance(module.instance, module);
     };
+    
+    // 增加全局错误捕获，避免游戏直接卡死不动
     window.onerror = (message) => {
+        console.error("Window Error:", message);
+        if(typeof message === 'string' && message.includes('alGetProcAddress')) {
+             console.warn("Ignored Audio Context Error");
+             return true; // 阻止错误冒泡
+        }
         Module.setStatus(`Error: ${message}`);
         spinnerElement.hidden = true;
     };
+    
     Module.arguments = window.location.search
         .slice(1)
         .split('&')
         .filter(Boolean)
         .map(decodeURIComponent);
+    
     window.onbeforeunload = function (event) {
         event.preventDefault();
         return '';
@@ -541,7 +589,6 @@ const clickToPlay = document.querySelector('.click-to-play');
 const clickLink = clickToPlay.querySelector('button');
 clickToPlay.addEventListener('click', (e) => {
     if (!haveOriginalGame) {
-        //     alert(t('demoAlert'));
         alert(t('demoOffDisclaimer'));
         return;
     }
@@ -549,7 +596,9 @@ clickToPlay.addEventListener('click', (e) => {
         startGame(e);
         if (!isMobile && autoFullScreen) {
             if (window.top === window) {
-                document.body.requestFullscreen(document.documentElement);
+                document.body.requestFullscreen(document.documentElement).catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
             } else {
                 window.top.postMessage({
                     event: 'request-fullscreen',
@@ -612,7 +661,6 @@ wrapIDBFS(console.log).addListener({
     },
 });
 
-
 const clickToPlayButton = document.getElementById('click-to-play-button');
 clickToPlayButton.textContent = t('clickToPlayDemo');
 clickToPlayButton.classList.add('disabled');
@@ -628,7 +676,6 @@ const disclaimerCheckboxLabel = document.getElementById('disclaimer-checkbox-lab
 disclaimerCheckboxLabel.textContent = t('disclaimerCheckbox');
 const disclaimerCheckbox = document.getElementById('disclaimer-checkbox');
 const originalGameFile = document.getElementById('original-game-file');
-
 
 function ownerShipConfirmed() {
     localStorage.setItem('vcsky.haveOriginalGame', 'true');
@@ -827,19 +874,15 @@ if (configurableMode) {
     const configMaxFps = document.getElementById('config-max-fps');
     
     if (configPanel && configCheats && configFullscreen && configMaxFps) {
-        // Show config panel
         configPanel.style.display = 'block';
         
-        // Set initial values from URL params
         if (configLang) configLang.value = currentLanguage;
         configCheats.checked = cheatsEnabled;
         configFullscreen.checked = autoFullScreen;
         configMaxFps.value = maxFPS;
         
-        // Update config panel labels with current language
         updateAllTranslations();
         
-        // Language selector handler
         if (configLang) {
             configLang.addEventListener('change', (e) => {
                 currentLanguage = e.target.value;
@@ -848,7 +891,6 @@ if (configurableMode) {
             });
         }
         
-        // Update settings when changed
         configCheats.addEventListener('change', (e) => {
             cheatsEnabled = e.target.checked;
         });
