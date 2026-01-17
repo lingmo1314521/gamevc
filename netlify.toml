@@ -1,0 +1,30 @@
+[build]
+  # 因为你把文件都放根目录了，所以这里发布目录是当前目录
+  publish = "."
+
+# 全局安全设置 (WASM 游戏必须)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+
+# 【关键修复】只针对 vcbr 文件夹下的 .br 文件发送解压指令
+[[headers]]
+  for = "/vcbr/*"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/octet-stream"
+
+# 反向代理规则: 仍然需要代理 vcsky 资源
+[[redirects]]
+  from = "/vcsky/*"
+  to = "https://cdn.dos.zone/vcsky/:splat"
+  status = 200
+  force = true
+
+# 默认重定向 (兜底)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
